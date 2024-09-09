@@ -66,7 +66,7 @@ impl From<pkg_model::Repositories> for Repositories {
     }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Serialize)]
 pub struct ReadmeResponse {
     pub found: bool,
     pub content: Option<String>,

@@ -1,10 +1,11 @@
 use std::error::Error;
 use actix_web::{web};
-use crate::internals::github::models::dto::{Repositories, SearchRepositoriesRequest};
+use crate::internals::github::models::dto::{ReadmeResponse, Repositories, SearchRepositoriesRequest};
 use crate::internals::github::usecases::repository_usecase::RepositoryUseCase;
 
 pub trait RepositoryController {
     async fn fetch_repositories(&self, req: web::Json<SearchRepositoriesRequest>) -> Result<Repositories, Box<dyn Error>>;
+    async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>>;
 }
 
 pub struct GithubRepositoryController<U: RepositoryUseCase> {
@@ -30,5 +31,9 @@ impl<U: RepositoryUseCase> RepositoryController for GithubRepositoryController<U
             help_wanted_count: req.help_wanted_count,
         };
         self.usecase.fetch_repositories(search_req).await
+    }
+
+    async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>> {
+        self.usecase.fetch_top_readme(owner_name, repository_name).await
     }
 }

@@ -19,16 +19,27 @@ impl<C: RepositoryController> GithubRepositoryRouter<C> {
     async fn search_repositories_handler(router: web::Data<GithubRepositoryRouter<C>>, req: web::Json<SearchRepositoriesRequest>) -> impl Responder {
         match router.controller.fetch_repositories(req).await {
             Ok(repositories) => HttpResponse::Ok().json(repositories),
-            Err(err) => HttpResponse::InternalServerError().body(format!("Error: {}", err)),
+            Err(e) => HttpResponse::InternalServerError().body(format!("Error: {}", e)),
+        }
+    }
+
+    async fn search_repository_top_readme_handler(router: web::Data<GithubRepositoryRouter<C>>, path: web::Path<(String, String)>) -> impl Responder {
+        let (owner_name, repo_name) = path.into_inner();
+        match router.controller.fetch_top_readme(&owner_name, &repo_name).await {
+            Ok(top_readme) => HttpResponse::Ok().json(top_readme),
+            Err(e) => HttpResponse::InternalServerError().body(format!("Error: {}", e)),
         }
     }
 }
 
-impl<C: RepositoryController + 'static> RepositoryRouter for GithubRepositoryRouter<C> {
-    fn repository_scope(&self) -> Scope {
+impl<C: RepositoryController + 'static> GithubRepositoryRouter<C> {
+    pub fn repository_scope(&self) -> Scope {
         web::scope("/github")
-            .route("/search", web::post().to(
-                GithubRepositoryRouter::<C>::
-                search_repositories_handler))
+            .service(
+                web::scope("/repositories")
+                    .route("/search-list", web::post().to(Self::search_repositories_handler))
+                    .route("/{owner_name}/{repo_name}/top-readme", web::get().to(Self::search_repository_top_readme_handler))
+            )
     }
 }
+
