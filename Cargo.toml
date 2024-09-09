@@ -1,0 +1,32 @@
+[package]
+name = "fynoss"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "migrate"
+path = "src/cli/migrate.rs"
+
+[dependencies]
+reqwest = { version = "0.12.7", features = ["blocking", "json"] }
+serde = { version = "1.0.209", features = ["derive"] }
+serde_json = "1.0.128"
+tokio = { version = "1.4.0", features = ["full"] }
+dotenv = "0.15.0"
+base64 = "0.22.1"
+sqlx = { version = "0.8.2", features = ["mysql", "runtime-tokio", "tls-native-tls" ] }
+rustls = "0.23.12"
+clap = { version = "4.5.17", features = ["derive"] }
+sea-query ={ version = "0.32.0-rc.1"}
+sea-query-binder = { version = "0.7.0-rc.2", features = [
+    "sqlx-mysql",
+    "with-chrono",
+    "with-json",
+    "with-rust_decimal",
+    "with-bigdecimal",
+    "with-uuid",
+    "with-time",
+    "runtime-async-std-native-tls",
+] }
+chrono = "0.4.38"
+actix-web = "4.9.0"
