@@ -30,3 +30,4 @@ sea-query-binder = { version = "0.7.0-rc.2", features = [
 ] }
 chrono = "0.4.38"
 actix-web = "4.9.0"
+env_logger = "0.11.5"

@@ -6,16 +6,17 @@ pub trait GithubApiClient {
     async fn get(&self, url: &str) -> Result<GithubClientResponse, Box<dyn Error>>;
 }
 
+#[derive(Clone)]
 pub struct GithubClient {
     token: String,
     reqwest_client: ReqwestClient
 }
 
 impl GithubClient {
-    pub fn new(token: String) -> Self {
+    pub fn new(token: String, reqwest_client: ReqwestClient) -> Self {
         Self {
             token,
-            reqwest_client: ReqwestClient::new()
+            reqwest_client,
         }
     }
 }

@@ -7,6 +7,7 @@ pub trait RepositoryUseCase {
     async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>>;
 }
 
+#[derive(Clone)]
 pub struct GithubRepositoryUseCase<S: RepositoryService> {
     service: S
 }

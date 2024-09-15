@@ -9,12 +9,13 @@ pub trait RepositoryService {
     async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>>;
 }
 
-pub struct GithubRepositoryService<C: RepositoryClient, R: RepositoryRepository> {
+#[derive(Clone)]
+pub struct GithubRepositoryService<C: RepositoryClient + Clone, R: RepositoryRepository + Clone> {
     client: C,
     repository: R,
 }
 
-impl<C: RepositoryClient, R: RepositoryRepository> GithubRepositoryService<C, R> {
+impl<C: RepositoryClient + Clone, R: RepositoryRepository + Clone> GithubRepositoryService<C, R> {
     pub fn new(client: C, repository: R) -> Self {
         Self {
             client,
@@ -23,7 +24,7 @@ impl<C: RepositoryClient, R: RepositoryRepository> GithubRepositoryService<C, R>
     }
 }
 
-impl<C: RepositoryClient, R: RepositoryRepository> RepositoryService for GithubRepositoryService<C, R> {
+impl<C: RepositoryClient + Clone, R: RepositoryRepository + Clone> RepositoryService for GithubRepositoryService<C, R> {
     async fn fetch_repositories(&self, req: SearchRepositoriesRequest) -> Result<Repositories, Box<dyn Error>> {
         let client_req = p_model::SearchRepositoriesRequest {
             min_stars: req.min_stars,

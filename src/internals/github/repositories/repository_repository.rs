@@ -11,6 +11,7 @@ pub trait RepositoryRepository {
     async fn bulk_insert(&self, repos: Vec<GithubRepository>) -> Result<(), Box<dyn Error>>;
 }
 
+#[derive(Clone)]
 pub struct GithubRepositoryRepository {
     pool: Pool<MySql>
 }
