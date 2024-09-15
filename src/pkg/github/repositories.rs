@@ -11,6 +11,7 @@ pub trait RepositoryClient {
     async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>>;
 }
 
+#[derive(Clone)]
 pub struct GithubRepositoryClient<C: GithubApiClient> {
     client: C,
 }
