@@ -6,6 +6,7 @@ use dotenv::dotenv;
 use std::env;
 use std::sync::Arc;
 use actix_web::{App, HttpServer, web};
+use actix_web::middleware::Logger;
 use reqwest::Client as ReqwestClient;
 use sqlx::MySqlPool;
 use crate::internals::ai::controllers::ai_controller::OpenAIController;
@@ -59,6 +60,7 @@ async fn main() {
             .app_data(web::Data::from(ai_router_clone))
             .service(github_repository_router.repository_scope())
             .service(ai_router.ai_scope())
+            .wrap(Logger::default())
     })
         .bind(("0.0.0.0", 8080))
         .unwrap()

@@ -35,7 +35,9 @@ impl<AS: AIService, RS: RepositoryService> AIUseCase for OpenAIUseCase<AS, RS> {
         }
 
         let prompt = format!(
-            "What do I have to study to contribute to {}/{}?\nReadme of the repository is below\n{:?}",
+            "What do I have to study to contribute to {}/{}?\n
+            Which currently-opened issues are good to contribute first and which codes in which files to change?\n
+            Readme of the repository is below\n{:?}",
             owner_name, repository_name, top_readme.content
         );
 

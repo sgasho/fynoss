@@ -80,3 +80,20 @@ impl From<pkg_model::ReadmeResponse> for ReadmeResponse {
         }
     }
 }
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Issue {
+    pub url: String,
+    pub title: String,
+    pub body: Option<String>,
+}
+
+impl From<pkg_model::Issue> for Issue {
+    fn from(value: pkg_model::Issue) -> Self {
+        Self {
+            url: value.url,
+            title: value.title,
+            body: value.body
+        }
+    }
+}

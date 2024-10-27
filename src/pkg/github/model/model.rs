@@ -1,3 +1,4 @@
+use std::fmt::{Debug, Formatter};
 use serde::Deserialize;
 
 pub struct SearchRepositoriesRequest {
@@ -42,4 +43,65 @@ pub struct ReadmeClientResponse {
 pub struct ReadmeResponse {
     pub found: bool,
     pub content: Option<String>,
+}
+
+pub enum IssueState {
+    Open,
+    Closed,
+    All,
+}
+
+impl Debug for IssueState {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            IssueState::Open => write!(f, "open"),
+            IssueState::Closed => write!(f, "closed"),
+            IssueState::All => write!(f, "all"),
+        }
+    }
+}
+
+pub enum SearchIssuesSortKey {
+    Created,
+    Updated,
+    Comments,
+}
+
+impl Debug for SearchIssuesSortKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SearchIssuesSortKey::Created => write!(f, "created"),
+            SearchIssuesSortKey::Updated => write!(f, "updated"),
+            SearchIssuesSortKey::Comments => write!(f, "comments"),
+        }
+    }
+}
+
+pub enum SortOrder {
+    Asc,
+    Desc,
+}
+
+impl Debug for SortOrder {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SortOrder::Asc => write!(f, "asc"),
+            SortOrder::Desc => write!(f, "desc"),
+        }
+    }
+}
+
+pub struct SearchIssuesRequest {
+    pub state: IssueState,
+    pub assignee: String,
+    pub labels: Vec<String>,
+    pub sort_key: SearchIssuesSortKey,
+    pub sort_order: SortOrder
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Issue {
+    pub url: String,
+    pub title: String,
+    pub body: Option<String>,
 }

@@ -1,6 +1,7 @@
 use std::error::Error;
+use log::info;
 use crate::pkg::github::client::client::GithubApiClient;
-use crate::pkg::github::model::model::{SearchRepositoriesRequest, Repositories, ReadmeClientResponse, ReadmeResponse};
+use crate::pkg::github::model::model::{SearchRepositoriesRequest, Repositories, ReadmeClientResponse, ReadmeResponse, SearchIssuesRequest, Issue};
 use crate::pkg::utils::base64::base64::decode_to_string;
 
 const SEARCH_REPOSITORIES_URL: &str = "https://api.github.com/search/repositories";
@@ -9,6 +10,7 @@ const REPOSITORY_URL: &str = "https://api.github.com/repos";
 pub trait RepositoryClient {
     async fn fetch_repositories(&self, req: SearchRepositoriesRequest) -> Result<Repositories, Box<dyn Error>>;
     async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>>;
+    async fn fetch_issues(&self, owner_name: &str, repository_name: &str, req: SearchIssuesRequest) -> Result<Vec<Issue>, Box<dyn Error>>;
 }
 
 #[derive(Clone)]
@@ -73,19 +75,34 @@ impl<C: GithubApiClient> RepositoryClient for GithubRepositoryClient<C> {
             Err("Unknown encoding for README content".into())
         }
     }
+
+    async fn fetch_issues(&self, owner_name: &str, repository_name: &str, req: SearchIssuesRequest) -> Result<Vec<Issue>, Box<dyn Error>> {
+        let url = format!(
+            "{}/{}/{}/issues\
+            ?state={:?}&assignee={}&labels={}&sort={:?}&direction={:?}",
+            REPOSITORY_URL, owner_name, repository_name, req.state, req.assignee, req.labels.join(","), req.sort_key, req.sort_order
+        );
+
+        let res = self.client.get(&url).await?;
+        let issues: Vec<Issue> = serde_json::from_str(&res.text)?;
+
+        Ok(issues)
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use reqwest::StatusCode;
     use crate::pkg::github::client::client::{GithubApiClient, GithubClientResponse};
-    use crate::pkg::github::repositories::tests::Mode::{FetchRepositories, FetchTopReadmeOkFound, FetchTopReadmeOkNotFound};
+    use crate::pkg::github::model::model::{IssueState, SearchIssuesSortKey, SortOrder};
+    use crate::pkg::github::repositories::tests::Mode::{FetchRepositories, FetchTopReadmeOkFound, FetchTopReadmeOkNotFound, FetchIssues};
     use super::*;
 
     enum Mode {
         FetchRepositories,
         FetchTopReadmeOkFound,
         FetchTopReadmeOkNotFound,
+        FetchIssues,
     }
 
     struct MockClient {
@@ -93,7 +110,7 @@ mod tests {
     }
 
     impl GithubApiClient for MockClient {
-        fn get(&self, _url: &str) -> Result<GithubClientResponse, Box<dyn Error>> {
+        async fn get(&self, _url: &str) -> Result<GithubClientResponse, Box<dyn Error>> {
             match self.mode {
                 FetchRepositories => {
                     Ok(GithubClientResponse {
@@ -144,12 +161,31 @@ mod tests {
                         status: StatusCode::NOT_FOUND
                     })
                 }
+                FetchIssues => {
+                    Ok(GithubClientResponse {
+                        text: r#"[
+                            {
+                                "id": 1,
+                                "url": "url1",
+                                "title": "title1",
+                                "body": "body1"
+                            },
+                            {
+                                "id": 2,
+                                "url": "url2",
+                                "title": "title2",
+                                "body": "body2"
+                            }
+                        ]"#.to_string(),
+                        status: StatusCode::OK
+                    })
+                }
             }
         }
     }
 
-    #[test]
-    fn test_fetch_repositories() {
+    #[tokio::test]
+    async fn test_fetch_repositories() {
         let client = MockClient {
             mode: FetchRepositories
         };
@@ -161,7 +197,7 @@ mod tests {
             language: "go".to_string(),
             good_first_issues_count: 1,
             help_wanted_count: 1,
-        }).unwrap();
+        }).await.unwrap();
 
         assert_eq!(result.total_count, 2);
         assert_eq!(result.items.len(), 2);
@@ -183,26 +219,43 @@ mod tests {
         assert_eq!(result.items[1].owner.avatar_url, "https://avatar.com/2");
     }
 
-    #[test]
-    fn test_fetch_top_readme_ok_found() {
+    #[tokio::test]
+    async fn test_fetch_top_readme_ok_found() {
         let client = MockClient {
             mode: FetchTopReadmeOkFound
         };
         let repository_client = GithubRepositoryClient::new(client);
-        let result = repository_client.fetch_top_readme("owner", "repo").unwrap();
+        let result = repository_client.fetch_top_readme("owner", "repo").await.unwrap();
 
         assert!(result.found);
         assert_eq!(result.content.unwrap(), "<div align=\"center\">\n<p align=\"center\">\n\n<img");
     }
 
-    #[test]
-    fn test_fetch_top_readme_ok_not_found() {
+    #[tokio::test]
+    async fn test_fetch_top_readme_ok_not_found() {
         let client = MockClient {
             mode: FetchTopReadmeOkNotFound
         };
         let repository_client = GithubRepositoryClient::new(client);
-        let result = repository_client.fetch_top_readme("owner", "repo").unwrap();
+        let result = repository_client.fetch_top_readme("owner", "repo").await.unwrap();
 
         assert!(!result.found);
+    }
+    
+    #[tokio::test]
+    async fn test_fetch_issues_ok() {
+        let client = MockClient {
+            mode: FetchIssues,
+        };
+        let repository_client = GithubRepositoryClient::new(client);
+        let result = repository_client.fetch_issues("owner", "repo", SearchIssuesRequest {
+            state: IssueState::Open,
+            assignee: "none".to_string(),
+            labels: vec!["label1".to_string(), "label2".to_string()],
+            sort_key: SearchIssuesSortKey::Created,
+            sort_order: SortOrder::Asc,
+        }).await.unwrap();
+
+        assert_eq!(result.len(), 2);
     }
 }

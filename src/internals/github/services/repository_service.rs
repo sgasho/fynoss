@@ -1,5 +1,6 @@
 use std::error::Error;
-use crate::internals::github::models::dto::{Repositories, SearchRepositoriesRequest, ReadmeResponse};
+use crate::internals::github::models::dto::{Repositories, SearchRepositoriesRequest, ReadmeResponse, Issue};
+use crate::internals::github::models::entity::{SearchIssuesRequest};
 use crate::internals::github::repositories::repository_repository::RepositoryRepository;
 use crate::pkg::github::model::model as p_model;
 use crate::pkg::github::repositories::{RepositoryClient};
@@ -7,6 +8,7 @@ use crate::pkg::github::repositories::{RepositoryClient};
 pub trait RepositoryService {
     async fn fetch_repositories(&self, req: SearchRepositoriesRequest) -> Result<Repositories, Box<dyn Error>>;
     async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>>;
+    async fn fetch_issues(&self, owner_name: &str, repository_name: &str, req: SearchIssuesRequest) -> Result<Vec<Issue>, Box<dyn Error>>;
 }
 
 #[derive(Clone)]
@@ -41,7 +43,22 @@ impl<C: RepositoryClient + Clone, R: RepositoryRepository + Clone> RepositorySer
 
     async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>> {
         let res = self.client.fetch_top_readme(owner_name, repository_name).await?;
-        Ok(res.into())
+        if res.found {
+            return Ok(res.into())
+        }
+        Err("Not found".into())
+    }
+
+    async fn fetch_issues(&self, owner_name: &str, repository_name: &str, req: SearchIssuesRequest) -> Result<Vec<Issue>, Box<dyn Error>> {
+        let issues_req = p_model::SearchIssuesRequest {
+            state: req.state.into(),
+            assignee: req.assignee.into(),
+            labels: req.labels,
+            sort_key: req.sort_key.into(),
+            sort_order: req.sort_order.into(),
+        };
+        let res = self.client.fetch_issues(owner_name, repository_name, issues_req).await?;
+        Ok(res.into_iter().map(|i| i.into()).collect())
     }
 }
 
@@ -50,16 +67,20 @@ mod tests {
     use std::error::Error;
     use crate::internals::github::services::repository_service::{GithubRepositoryService, RepositoryService};
     use crate::internals::github::models::dto as i_model;
+    use crate::internals::github::models::dto::SearchRepositoriesRequest;
+    use crate::internals::github::models::entity::GithubRepository;
+    use crate::internals::github::repositories::repository_repository::RepositoryRepository;
     use crate::pkg::github::model::model as p_model;
-    use crate::pkg::github::model::model::ReadmeResponse;
+    use crate::pkg::github::model::model::{Issue, ReadmeResponse, SearchIssuesRequest};
     use crate::pkg::github::repositories::RepositoryClient;
 
+    #[derive(Clone)]
     struct MockClient {
         should_fail: bool
     }
 
     impl RepositoryClient for MockClient {
-        fn fetch_repositories(&self, _req: p_model::SearchRepositoriesRequest) -> Result<p_model::Repositories, Box<dyn Error>> {
+        async fn fetch_repositories(&self, _req: p_model::SearchRepositoriesRequest) -> Result<p_model::Repositories, Box<dyn Error>> {
             if self.should_fail {
                 Err("Failed to fetch repositories".into())
             } else {
@@ -78,15 +99,33 @@ mod tests {
             }
         }
 
-        fn fetch_top_readme(&self, _owner_name: &str, _repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>> {
+        async fn fetch_top_readme(&self, _owner_name: &str, _repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>> {
+            todo!()
+        }
+
+        async fn fetch_issues(&self, owner_name: &str, repository_name: &str, req: SearchIssuesRequest) -> Result<Vec<Issue>, Box<dyn Error>> {
             todo!()
         }
     }
 
-    #[test]
-    fn test_fetch_repositories_ok() {
+    #[derive(Clone)]
+    struct MockRepository;
+
+    impl RepositoryRepository for MockRepository {
+        async fn find_list(&self, req: SearchRepositoriesRequest) -> Result<Vec<GithubRepository>, Box<dyn Error>> {
+            todo!()
+        }
+
+        async fn bulk_insert(&self, repos: Vec<GithubRepository>) -> Result<(), Box<dyn Error>> {
+            todo!()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_fetch_repositories_ok() {
         let client = MockClient {should_fail: false};
-        let repository_info_service = GithubRepositoryService::new(client);
+        let repo_repo = MockRepository;
+        let repository_info_service = GithubRepositoryService::new(client, repo_repo);
         let res = repository_info_service.fetch_repositories(i_model::SearchRepositoriesRequest {
             min_stars: 0,
             max_stars: None,
@@ -94,7 +133,7 @@ mod tests {
             language: "".to_string(),
             good_first_issues_count: 0,
             help_wanted_count: 0,
-        }).unwrap();
+        }).await.unwrap();
 
         assert_eq!(res.total_count, 1);
         assert_eq!(res.items.len(), 1);
@@ -108,10 +147,11 @@ mod tests {
         assert_eq!(res.items[0].owner.avatar_url, "avatar_url");
     }
 
-    #[test]
-    fn test_fetch_repositories_ng() {
+    #[tokio::test]
+    async fn test_fetch_repositories_ng() {
         let client = MockClient { should_fail: true };
-        let repository_info_service = GithubRepositoryService::new(client);
+        let repo_repo = MockRepository;
+        let repository_info_service = GithubRepositoryService::new(client, repo_repo);
 
         let res = repository_info_service.fetch_repositories(i_model::SearchRepositoriesRequest {
             min_stars: 0,
@@ -120,7 +160,7 @@ mod tests {
             language: "".to_string(),
             good_first_issues_count: 0,
             help_wanted_count: 0,
-        });
+        }).await;
 
         assert!(res.is_err());
 
