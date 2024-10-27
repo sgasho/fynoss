@@ -1,6 +1,8 @@
 use actix_web::{web, HttpResponse, Responder, Scope};
+use log::info;
 use crate::internals::github::controller::repository_controller::{RepositoryController};
 use crate::internals::github::models::dto::SearchRepositoriesRequest;
+use crate::internals::github::models::entity::SearchIssuesRequestQueries;
 
 pub trait RepositoryRouter {
     fn repository_scope(&self) -> Scope;
@@ -30,6 +32,15 @@ impl<C: RepositoryController> GithubRepositoryRouter<C> {
             Err(e) => HttpResponse::InternalServerError().body(format!("Error: {}", e)),
         }
     }
+
+    async fn search_repository_issues_handler(router: web::Data<GithubRepositoryRouter<C>>, path: web::Path<(String, String)>, query: web::Query<SearchIssuesRequestQueries>) -> impl Responder {
+        let (owner_name, repo_name) = path.into_inner();
+        let query_params = query.into_inner();
+        match router.controller.fetch_issues(&owner_name, &repo_name, query_params.into()).await {
+            Ok(issues) => HttpResponse::Ok().json(issues),
+            Err(e) => HttpResponse::InternalServerError().body(format!("Error: {}", e)),
+        }
+    }
 }
 
 impl<C: RepositoryController + 'static> GithubRepositoryRouter<C> {
@@ -39,6 +50,7 @@ impl<C: RepositoryController + 'static> GithubRepositoryRouter<C> {
                 web::scope("/repositories")
                     .route("/search-list", web::post().to(Self::search_repositories_handler))
                     .route("/{owner_name}/{repo_name}/top-readme", web::get().to(Self::search_repository_top_readme_handler))
+                    .route("/{owner_name}/{repo_name}/issues", web::get().to(Self::search_repository_issues_handler))
             )
     }
 }

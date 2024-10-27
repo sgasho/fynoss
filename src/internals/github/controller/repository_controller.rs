@@ -1,11 +1,13 @@
 use std::error::Error;
 use actix_web::{web};
-use crate::internals::github::models::dto::{ReadmeResponse, Repositories, SearchRepositoriesRequest};
+use crate::internals::github::models::dto::{Issue, ReadmeResponse, Repositories, SearchRepositoriesRequest};
+use crate::internals::github::models::entity::SearchIssuesRequest;
 use crate::internals::github::usecases::repository_usecase::RepositoryUseCase;
 
 pub trait RepositoryController {
     async fn fetch_repositories(&self, req: web::Json<SearchRepositoriesRequest>) -> Result<Repositories, Box<dyn Error>>;
     async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>>;
+    async fn fetch_issues(&self, owner_name: &str, repository_name: &str, req: SearchIssuesRequest) -> Result<Vec<Issue>, Box<dyn Error>>;
 }
 
 #[derive(Clone)]
@@ -36,5 +38,9 @@ impl<U: RepositoryUseCase> RepositoryController for GithubRepositoryController<U
 
     async fn fetch_top_readme(&self, owner_name: &str, repository_name: &str) -> Result<ReadmeResponse, Box<dyn Error>> {
         self.usecase.fetch_top_readme(owner_name, repository_name).await
+    }
+
+    async fn fetch_issues(&self, owner_name: &str, repository_name: &str, req: SearchIssuesRequest) -> Result<Vec<Issue>, Box<dyn Error>> {
+        self.usecase.fetch_issues(owner_name, repository_name, req).await
     }
 }
