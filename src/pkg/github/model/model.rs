@@ -101,7 +101,13 @@ pub struct SearchIssuesRequest {
 
 #[derive(Deserialize, Debug)]
 pub struct Issue {
-    pub url: String,
+    pub html_url: String,
     pub title: String,
     pub body: Option<String>,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Issues {
+    pub total_count: u32,
+    pub items: Vec<Issue>,
 }
