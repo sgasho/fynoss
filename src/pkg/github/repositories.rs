@@ -1,11 +1,11 @@
 use std::error::Error;
 use log::info;
 use crate::pkg::github::client::client::GithubApiClient;
-use crate::pkg::github::model::model::{SearchRepositoriesRequest, Repositories, ReadmeClientResponse, ReadmeResponse, SearchIssuesRequest, Issue};
+use crate::pkg::github::model::model::{SearchRepositoriesRequest, Repositories, ReadmeClientResponse, ReadmeResponse, SearchIssuesRequest, Issue, Issues};
 use crate::pkg::utils::base64::base64::decode_to_string;
 
 const SEARCH_REPOSITORIES_URL: &str = "https://api.github.com/search/repositories";
-const REPOSITORY_URL: &str = "https://api.github.com/repos";
+const REPOSITORY_URL: &str = "https://api.github.com";
 
 pub trait RepositoryClient {
     async fn fetch_repositories(&self, req: SearchRepositoriesRequest) -> Result<Repositories, Box<dyn Error>>;
@@ -78,15 +78,15 @@ impl<C: GithubApiClient> RepositoryClient for GithubRepositoryClient<C> {
 
     async fn fetch_issues(&self, owner_name: &str, repository_name: &str, req: SearchIssuesRequest) -> Result<Vec<Issue>, Box<dyn Error>> {
         let url = format!(
-            "{}/{}/{}/issues\
-            ?state={:?}&assignee={}&labels={}&sort={:?}&direction={:?}",
-            REPOSITORY_URL, owner_name, repository_name, req.state, req.assignee, req.labels.join(","), req.sort_key, req.sort_order
+            "{}/search/issues\
+            ?sort={:?}&order={:?}&q=repo:{}/{} is:issue state:{:?} no:assignee",
+            REPOSITORY_URL, req.sort_key, req.sort_order, owner_name, repository_name, req.state,
         );
 
         let res = self.client.get(&url).await?;
-        let issues: Vec<Issue> = serde_json::from_str(&res.text)?;
+        let issues: Issues = serde_json::from_str(&res.text)?;
 
-        Ok(issues)
+        Ok(issues.items)
     }
 }
 
@@ -163,20 +163,23 @@ mod tests {
                 }
                 FetchIssues => {
                     Ok(GithubClientResponse {
-                        text: r#"[
-                            {
-                                "id": 1,
-                                "url": "url1",
-                                "title": "title1",
-                                "body": "body1"
-                            },
-                            {
-                                "id": 2,
-                                "url": "url2",
-                                "title": "title2",
-                                "body": "body2"
-                            }
-                        ]"#.to_string(),
+                        text: r#"{
+                            "total_count": 2,
+                            "items": [
+                                {
+                                    "id": 1,
+                                    "html_url": "url1",
+                                    "title": "title1",
+                                    "body": "body1"
+                                },
+                                {
+                                    "id": 2,
+                                    "html_url": "url2",
+                                    "title": "title2",
+                                    "body": "body2"
+                                }
+                            ]
+                        }"#.to_string(),
                         status: StatusCode::OK
                     })
                 }

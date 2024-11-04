@@ -83,7 +83,7 @@ impl From<pkg_model::ReadmeResponse> for ReadmeResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Issue {
-    pub url: String,
+    pub html_url: String,
     pub title: String,
     pub body: Option<String>,
 }
@@ -91,7 +91,7 @@ pub struct Issue {
 impl From<pkg_model::Issue> for Issue {
     fn from(value: pkg_model::Issue) -> Self {
         Self {
-            url: value.url,
+            html_url: value.html_url,
             title: value.title,
             body: value.body
         }
